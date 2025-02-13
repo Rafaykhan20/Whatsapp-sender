@@ -1,46 +1,37 @@
 from flask import Flask, render_template, request, jsonify
-import os
+import pywhatkit as kit
 import time
+import os
 
 app = Flask(__name__)
 
-# Global variables to store user inputs
-TARGET_NUMBER = None
-MESSAGES = []
-HATER_NAME = None
-DELAY = None
-
-# Home route
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-# Send messages route
-@app.route("/send", methods=["POST"])
-def send():
-    global TARGET_NUMBER, MESSAGES, HATER_NAME, DELAY
-    try:
-        # Get form data
-        TARGET_NUMBER = request.form.get("target_number")
-        message_file = request.files.get("message_file")
-        HATER_NAME = request.form.get("hater_name")
-        DELAY = int(request.form.get("delay"))
+@app.route('/start', methods=['POST'])
+def start():
+    # Get user inputs from the form
+    target_number = request.form['target_number']
+    message_file_path = request.form['message_file']
+    message_delay = int(request.form['message_delay'])
+    hater_name = request.form['hater_name']
 
-        # Read messages from file
-        if message_file:
-            MESSAGES = message_file.read().decode("utf-8").splitlines()
-        else:
-            return jsonify({"status": "error", "message": "No message file uploaded."})
+    # Read messages from the file
+    with open(message_file_path, 'r') as file:
+        messages = file.read().splitlines()
 
-        # Simulate sending messages (replace with actual WhatsApp API logic)
-        for message in MESSAGES:
-            full_message = f"{HATER_NAME} {message}"
-            print(f"Sending to {TARGET_NUMBER}: {full_message}")  # Simulate sending
-            time.sleep(DELAY)
+    # Send messages in a loop
+    for message in messages:
+        full_message = f"{hater_name} {message}"
+        try:
+            kit.sendwhatmsg_instantly(target_number, full_message)
+            print(f"Message sent to {target_number}: {full_message}")
+            time.sleep(message_delay)
+        except Exception as e:
+            print(f"Error: {e}")
 
-        return jsonify({"status": "success", "message": "Messages sent successfully!"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+    return jsonify({"status": "success", "message": "Message sending started!"})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)

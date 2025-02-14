@@ -1,34 +1,40 @@
-from flask import Flask, render_template, request, jsonify
-import subprocess
-import os
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+import json
 
 app = Flask(__name__)
+app.secret_key = "your_secret_key"
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Load admin credentials from auth.json
+with open("auth.json") as f:
+    auth_data = json.load(f)
 
-@app.route('/start', methods=['POST'])
-def start():
-    # Get user inputs from the form
-    target_number = request.form['target_number']
-    message_file_path = request.form['message_file']
-    message_delay = int(request.form['message_delay'])
-    hater_name = request.form['hater_name']
+USERNAME = auth_data["username"]
+PASSWORD = auth_data["password"]
 
-    # Call the Node.js script
-    try:
-        subprocess.run([
-            "node",
-            "whatsapp_sender.js",  # Path to your Node.js script
-            target_number,
-            message_file_path,
-            str(message_delay),
-            hater_name
-        ], check=True)
-        return jsonify({"status": "success", "message": "Message sending started!"})
-    except subprocess.CalledProcessError as e:
-        return jsonify({"status": "error", "message": str(e)})
+@app.route("/", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
 
-if __name__ == '__main__':
+        if username == USERNAME and password == PASSWORD:
+            session["logged_in"] = True
+            return redirect(url_for("dashboard"))
+        else:
+            return render_template("login.html", error="Invalid credentials")
+
+    return render_template("login.html")
+
+@app.route("/dashboard")
+def dashboard():
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
+    return render_template("dashboard.html")
+
+@app.route("/logout")
+def logout():
+    session.pop("logged_in", None)
+    return redirect(url_for("login"))
+
+if __name__ == "__main__":
     app.run(debug=True)
